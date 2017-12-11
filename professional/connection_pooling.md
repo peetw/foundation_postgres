@@ -19,7 +19,7 @@ balancing.
 Example scenario; a load balancer with PgPool2 for PostgreSQL
 Master-Slave replication:
 
-![pgpool2-master-slave](media/images/pgpool-1.png)
+![pgpool2-master-slave](../media/images/pgpool-1.png)
 
 **pgpool-II** can manage multiple Postgres servers, and manage replication between
 servers also. If the database is replicated, executing a SELECT query on

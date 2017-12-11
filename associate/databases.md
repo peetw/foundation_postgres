@@ -1,6 +1,6 @@
 # Object hierarchy
 
-![Object hierarchy](media/images/object_hierarchy.jpg)
+![Object hierarchy](../media/images/object_hierarchy.jpg)
 
 The top-level object is the database cluster.
 Databases can be owned by users or groups. Databases can use 1+

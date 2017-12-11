@@ -43,7 +43,7 @@ standy allows users to connect, but only in read-only mode.
 
 Log-shipping architecture:
 
-![Log-Shipping architecture](media/images/log_shipping_architecture.png)
+![Log-Shipping architecture](../media/images/log_shipping_architecture.png)
 
 ## Streaming Replication
 
@@ -56,7 +56,7 @@ master).
 
 Hot streaming architecture:
 
-![Hot streaming architecture](media/images/hot_streaming_architecture.png)
+![Hot streaming architecture](../media/images/hot_streaming_architecture.png)
 
 ## Cascading Replication
 

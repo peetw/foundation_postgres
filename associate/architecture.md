@@ -10,7 +10,7 @@ on Postgres Advanced Server). Postmaster is the **Listener**.
 The postmaster must be configured to accept a connection from an IP
 address.
 
-![Process and memory architecture](media/images/postgres_process_memory_architecture.jpg)
+![Process and memory architecture](../media/images/postgres_process_memory_architecture.jpg)
 
 ## Utility processes
 
@@ -101,4 +101,4 @@ It contains:
 
 Page structure:
 
-![Page structure](media/images/pg_page_structure.png)
+![Page structure](../media/images/pg_page_structure.png)
