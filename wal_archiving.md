@@ -2,7 +2,7 @@
 
 ## Transaction logging (WAL)
 
-WAL Writer writes at each commit. WAL protects the database
+WAL Writer process writes at each commit. WAL protects the database
 (durability). WAL logs are stored as a set of 16 MB segments. The process of
 switching from one WAL segment to another is called a _log switch_.
 
@@ -14,8 +14,7 @@ WAL segment when full and ready to be switched. Archive logs are copies
 of WAL segments. The name of the archive log is the same as the WAL
 segment, and are used for PITR and replication.
 
-Configured in two ways: Archiver process, or ``pg_receivexlog`` tool
-and streamed to the prepared location.
+Configured in two ways: Archiver process, or ``pg_receivexlog`` tool.
 
 ## Archiver process
 
@@ -23,15 +22,17 @@ This process can be started by changing the WAL level to ``archive``,
 and setting the ``archive_mode`` parameter to on. The process executes
 ``archive_command`` whenever:
 
-* A WAL segment is switched.
-* Checkpoint is forced.
-* ``archive_timeout`` seconds pass.
-* ``pg_switch_xlog()`` function is called.
+* A WAL segment is switched
+* Checkpoint is forced
+* ``archive_timeout`` seconds pass
+* ``pg_switch_xlog()`` function is called
 
 A checkpoint is forced if ``max_wal_size`` (default 1 GB) is to be
 exceeded, ``checkpoint_timeout`` seconds pass or whenever the
 ``CHECKPOINT`` command is executed. The ``archive_command`` can be
 anything, but will typically copy the logfile to a location.
+
+For example: ``archive_command = 'cp %p /arch_dest/%f'``
 
 ## ``pg_receivexlog``
 

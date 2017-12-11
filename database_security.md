@@ -22,7 +22,7 @@ EDB Postgres Advanced Server also includes:
 * DBMS_CRYPTO, DBMS_RLS
 * EDB-Wrap (obfuscate source code)
 
-## Host based access control
+# Host based access control
 
 The **pg_hba.conf** can be used to restrict the ability to connect to a
 database. SSL can be forced for selected clients (hostname or IP).
@@ -31,18 +31,20 @@ be locked down to defined IPs.
 
 ## SSL
 
+Verify if SSL is enabled using ``pg_config --configure``
+
 To use SSL, ``server.key`` and ``server.crt`` must be generated and kept
-inside the data directory, and the ``ssl`` parameter must be set to on.
-**OpenSSL** must also be installed on the server. To perform certificate
-authentication, ``root.crt`` and ``root.crl`` are also required in the
-data directory.
+inside the data directory, and the ``ssl`` parameter in _postgresql.conf_
+must be set to on. **OpenSSL** must also be installed on the server. To
+perform certificate authentication, ``root.crt`` and ``root.crl`` are also
+required in the data directory.
 
 ## Password authentication
 
-MD5 or password authentication can be used, password hashes are store on
-the server is ``pg_shadow``. A user can use a ``.pgpass`` file in their
-Bash profile to store username & password. EDB Postgres Advanced Server
-provides a password policy manager.
+MD5 or password authentication can be used. MD5 is prefered since password
+will send passwords in clear text. MD5 password hashes are stored on the
+server in ``pg_shadow``. A user can use a ``.pgpass`` file in their Bash
+profile to store username & password.
 
 ## LDAP Authentication
 
@@ -55,11 +57,11 @@ can be performed on the LDAP server.
 
 ## Users
 
-Database user is separate from an OS user and a global across a database
+Database user is separate from an OS user and are global across a database
 cluster. Username must be unique and require authentication. Every
 connection made to a database is made using a user. **postgres** is the
 predefined superuser in the default data cluster. A different superuser
-name can be specified during initialisation of a database cluster (will
+name can be specified during initialization of a database cluster (will
 have all privileges with GRANT OPTION).
 
 ``GRANT`` can be used for granting object-level privileges to database
@@ -102,6 +104,12 @@ Setup using ``row_security`` config parameter. Policies:
 * ALTER POLICY
 * DROP POLICY
 
+
+```sql
+CREATE POLICY name ON tablename ....;
+DROP POLICY [IF EXISTS] name ON tablename;
+```
+
 Enable/disable RLS for a table:
 
 ```sql
@@ -114,11 +122,6 @@ attribute will bypass the RLS policy. ``FORCE ROW LEVEL SECURITY``
 command can be used to force security policy on table owner. A
 default-deny policy is used if no policy exists. Existing policies are
 applied once RLS is enabled.
-
-```sql
-CREATE POLICY name ON tablename ....;
-DROP POLICY [IF EXISTS] name ON tablename;
-```
 
 A policy can grant ability to select, insert, update or delete (or all)
 for rows which match the relevant policy expression. New rows are
@@ -133,46 +136,66 @@ after dropping all policies.
 
 ## Storage level encryption
 
-OS provide different tools for storage level encryption: full disk or
-filesystem level encryption.
+OS provide different tools for storage level encryption: full disk (e.g. LUKS) or
+filesystem level encryption (e.g. eCryptfs).
 
 ## Database level encryption
 
 ``pgcrypto`` provides a mechanism for encrypting selected columns. It
-supports one-way and two-way encryption. Install using the CREATE
-EXTENSION command. Crypto functions:
+supports one-way and two-way encryption. Install using the ``CREATE
+EXTENSION pgcrypto`` command.
+
+Crypto functions:
 
 * digest - generated a binary hash
 * hmac - calculates a hashed MAC for data with key
 * crypt - hashing a password
-* gen_salt - prepare algo parameters for crypt
+* gen_salt - prepare algorithm parameters for crypt
+* pgp_sym_encrypt - encrypt data using symmetric PGP key
+* pgp_pub_encrypt - encrypt data using public PGP key
 * encrypt, decrypt - enc/decr data using the cipher method
 
 # General security recommendations
 
-* Always keep server patched (OS and software).
-* Firewall the postmaster port appropriately.
-* Isolate the db port from other network traffic.
-* Don't rely solely on your frontend application to prevent unauthorised
-  access to your db.
-* Provide each user with their own login (no shared credentials).
-* Allow the minimum access only.
-* Use roles and classes of privileges.
-* Use views and view security barriers.
-* Use row-level security.
-* Only allow the db superuser to log in from the server locally.
+## Database server
+
+* Always keep server patched (OS and software)
+* Firewall the postmaster port appropriately
+* Isolate the db port from other network traffic
+* Don't rely solely on your frontend application to prevent unauthorized
+  access to your db
+
+## Database users
+
+* Provide each user with their own login (no shared credentials)
+* Allow the minimum access only
+* Use roles and classes of privileges
+* Use views and view security barriers
+* Use row-level security
+
+## Database superuser
+
+* Only allow the db superuser to log in from the server locally
 * Reserve usage of the superuser account for tasks & roles where it is
-  absolutely required.
-* Make as few objects owned by the superuser as necessary.
-* Restrict access to config files to administrators.
+  absolutely required
+* Make as few objects owned by the superuser as necessary
+* Restrict access to config files to administrators
 * Disallow host system login by db superuser roles (postgres or
-  enterprisedb).
+  enterprisedb)
 * Disallow root login to the db server. Use personal login and then
-  'sudo' to create an audit trail.
-* Use a separate db login to own each database.
+  'sudo' to create an audit trail
+* Use a separate db login to own each database
+
+## Database backups
+
 * Keep backups and have a tested recovery plan. Backup location should
   also be protected.
 * Have scripts perform backups and immediately test them and alert a DBA
-  on any failures.
-* Keep backups physically separate from the db server.
-* AAA verification: authenticate, authorise, audit.
+  on any failures
+* Keep backups physically separate from the db server
+
+## AAA
+
+* Authenticate - verify the user is who they claim to be
+* Authorize - verify the user is allowed access
+* Audit - record which user did what and when

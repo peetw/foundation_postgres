@@ -1,13 +1,19 @@
 # SQL Tuning
 
-Lifecycle of a SQL query: parse, optimise (note for DDL), execute. The
-parser checks syntax and tokenises the query. The optimiser generates a
-plan (cost-based). The executer carries out the plan. Common performance
-issues:
+Lifecycle of a SQL query:
 
-* Full table scans
+1. Parse
+2. Optimize (not for DDL)
+3. Execute
+
+The parser checks syntax and tokenises the query. The optimizer generates a
+plan (cost-based). The executer carries out the plan.
+
+Common performance issues:
+
+* Full table scans (AKA sequential scans)
 * Bad SQL
-* Sorts using disk
+* Sorts using disk (rather than using memory)
 * Join order
 * Old/missing statistics
 * I/O issues
@@ -19,44 +25,48 @@ SQL tuning goals:
 * Find possible performance issue
 * Reduce total execution time
 * Reduce the resource usage of a query
-* Determine the most efficient execution plan (optimiser hints, etc.)
+* Determine the most efficient execution plan (optimizer hints, etc.)
 * Balance/parallelise the workload
 
-SQL tuning steps (no fixed order):
+SQL tuning steps:
 
-1. Identify slow queries.
-2. Review the query execution plan.
-3. Optimiser statistics and behaviour.
-4. Restructure SQL statements.
-5. Add/remove indexes.
-6. Review final execution plan.
+1. Identify slow queries
+2. Review the query execution plan
+3. Optimizer statistics and behaviour
+4. Restructure SQL statements
+5. Add/remove indexes
+6. Review final execution plan
 
 # Identify slow queries
 
 ``log_min_duration_statement`` parameter can be used to track long
-running SQL. PEM's Log Manager Wizard can configure log min duration
-statements, also has the Server Log Analysis Dashboard, Log Analysis
-Expert Wizard and SQL Profiler (to find, troubleshoot and optimise slow
-SQL queries). ``log_min_duration_statement`` is set in postgres.conf,
+running SQL. ``log_min_duration_statement`` is set in postgres.conf,
 and all queries that take longer that the defined number of milliseconds
-will be logged.
+will be logged to the error log along with their duration.
 
 # Review the query execution plan
 
 An execution plan shows the steps necessary to execute a SQL statement.
 Planner is responsible for generating the plan. The Optimizer determines
-the most efficient plan. Cost estimates rely on accurate table
-statistics, gathered with ANALYZE (plus other parameters). The EXPLAIN
-command is used to view a query plan, while ANALYZE will execute the
+the most efficient plan. Cost estimates rely on accurate table statistics,
+gathered with ``ANALYZE`` (plus other parameters). The ``EXPLAIN``
+command is used to view a query plan, while ``ANALYZE`` will execute the
 query also and display some statistics about the execution. Syntax:
 
     EXPLAIN [ANALYZE] <SQL statement>;
+
+Numbers quoted by ``EXPLAIN``:
+
+* Estimated start-up cost
+* Estimated total cost
+* Estimated number of rows to be returned
+* Estimated average width (in bytes) of each row
 
 Plan components:
 
 * Cardinality (row estimates)
 * Access method (sequential or index)
-* Join method (hash, nested loop, etc.
+* Join method (hash, nested loop, merge, etc.)
 * Join type & order
 * Sort and aggregates
 
@@ -81,14 +91,14 @@ SHOW cpu_tuple_cost;
 
 Reviewing explain plans:
 
-* Examine the various costs at different levels in the plan.
-* Look for seq scans on large tables (all seq scans are not
-  inefficient).
+* Examine the various costs at different levels in the plan
+* Look for seq scans on large tables (not all seq scans are
+  inefficient, f.ex. sequential scan can be faster on small tables)
 * Check whether join types are appropriate for the number of rows
-  returned.
-* Check for indexes used in the plan.
-* Examine the cost of sorting and aggregation (in-memory/disc IO).
-* Review if views are being used efficiently.
+  returned
+* Check for indexes used in the plan
+* Examine the cost of sorting and aggregation (in-memory/disk IO)
+* Review if views are being used efficiently
 
 # Optimizer statistics and behaviour
 
@@ -98,12 +108,13 @@ operations. Can be updated using ``ANALYZE`` or OS command ``vacuumdb``
 with the -z option. Stats are stored in ``pg_class`` and
 ``pg_statistics``.
 
-Syntax: ``ANALYZE [VERBOSE] <table_name>|<column_name>;``
+Syntax: ``ANALYZE [VERBOSE] [<table_name>[(<column_name>)]];``
 
 Statistics can be controlled using ``ALTER TABLE name ALTER COLUMN column
 SET STATISTICS x`` (where **x** is 1 < x < 10000). A higher
 number will signal the server to gather and update more stats, but may
-slow autovacuum and analyze operations on stat tables.
+slow autovacuum and analyze operations on stat tables. Higher numbers
+are only useful for tables with large irregular data distributions.
 
 The ``TABLESAMPLE`` clause can be used to retrieve a random sample of
 tables from a table. Supports SYSTEM and BERNOULLI sample methods.
@@ -114,14 +125,16 @@ Bernoulli used seq IO, scans full table picking tuples randomly. Example:
 
 # Restructuring SQL statements
 
-* Avoid implicit type conversions.
-* Avoid expressions as the optimizer may ignore indexes on such columns.
-* Use equijoins wherever possible to improve SQL efficiency.
-* Try changing the access path and join order with hints.
-* Avoid full table scans if using an index is more efficient.
+Rewriting inefficient SQL is often easier than repairing it.
+
+* Avoid implicit type conversions
+* Avoid expressions as the optimizer may ignore indexes on such columns
+* Use equijoins wherever possible to improve SQL efficiency
+* Try changing the access path and join order with hints (hash, merge, etc.)
+* Avoid full table scans if using an index is more efficient
 * Try disabling sequential scans with ``SET enable_seqscan TO off;``
-* Join order can have a significant effect on performance.
-* Use views/materialized views for complex queries.
+* Join order can have a significant effect on performance
+* Use views/materialized views for complex queries
 
 # Indexes
 
@@ -130,18 +143,24 @@ one query can slow other queries. Verify index usage with the EXPLAIN
 command. Different types include B-tree (default), Hash, GiST, GIN, BRIN
 (PG 9.5+).
 
+An index can be defined on more than one column (B-tree, GiST, GIN only).
+Multi-column indexes are expensive and can only used when both columns
+are used in a ``WHERE...AND...`` clause. Example:
+
+    CREATE INDEX name ON table (column1, column2);
+
 You can adjust the ordering of a B-tree index by including the options
 ASC, DESC, NULLS FIRST and/or NULLS LAST. This may save time on sorting.
 
-Indexes can also be used to enforce uniqueness (on B-tree). Postgres
+Indexes can also be used to enforce uniqueness (B-tree only). Postgres
 automatically creates a unique index when a unique constraint or primary
 key is defined for a table. Example:
 
     CREATE UNIQUE INDEX name ON table (column1, [, column2]);
 
-An index can be created on a computed value from the table column
-values. These are expensive to maintain. They are useful when retrieval
-speed is more important than insert or update speed. Example:
+An expression index can be created on a computed value from the table
+column values. These are expensive to maintain. They are useful when
+retrieval speed is more important than insert or update speed. Example:
 
     CREATE INDEX name ON table (lower(column1));
 
@@ -159,13 +178,17 @@ large table columns, which correlate to the physical location within the
 table.
 
 Examining index usage: it is difficult to form a general procedure for
-determining which indexes to create. Always run ANALYZE first. Use real
+determining which indexes to create. Always run ``ANALYZE`` first. Use real
 data for experimentation. When indexes are not used, it can be useful for
 testing to force their usage with hints.
 
+To see the total usage statistics for each index:
+
+    SELECT * FROM pg_stat_user_indexes;
+
 # Review the final plan
 
-* Check again for missing indexes.
-* Check table stats are correct.
-* Check for large table sequential scans.
-* Compare the cost of first and final plans.
+* Check again for missing indexes
+* Check table stats are correct
+* Check for large table sequential scans
+* Compare the cost of first and final plans

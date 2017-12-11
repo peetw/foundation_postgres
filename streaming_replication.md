@@ -5,19 +5,19 @@ Reference: https://wiki.postgresql.org/wiki/Streaming_Replication
 ## Data Replication
 
 Replication is the process of copying data and changes to a secondary
-location for safety and availability. Data Replication in PostgreSQL can
+location for safety and availability. Data replication in PostgreSQL can
 be achieved by implementing:
 
-* Log-shipping standby servers
-* Streaming replication
-* xDB replication
+* Log-shipping standby servers (master server in archive mode)
+* Streaming replication (master server streams log data to standy server)
+* xDB replication (tool available from EDB)
 
-Failover can be automated using **EDB Failover Manager** for streaming
-replicated servers, of pgpool-II.
+Failover (for streaming replicated servers) can be automated using
+either **EDB Failover Manager** or pgpool-II.
 
 ## Sync or Async
 
-Log shipping is only synchronous. Postgres streaming replication is
+Log shipping is only asynchronous. Postgres streaming replication is
 async by default but can be configured as synchronous. Async:
 
 * Disconnected architecture
@@ -34,11 +34,12 @@ all servers (introduces a delay).
 
 ## Log-Shipping Standby Servers
 
-WAL archiving method for HA cluster. Primary server is in WAL archive
-mode. Standbys are in continuous recovery mode; reading and playing WAL
-logs from the WAL archive area of the primary server. Low performance
-impact on primary, low administration overhead. Supports both warm and
-hot standby.
+WAL archiving method for high-availability (HA) cluster. Primary server
+is in WAL archive mode. Standbys are in continuous recovery mode; reading
+and playing WAL logs from the WAL archive area of the primary server. Low
+performance impact on primary, low administration overhead. Supports both
+warm and hot standby. Warm standy does not allow any user to connect; hot
+standy allows users to connect, but only in read-only mode.
 
 Log-shipping architecture:
 
@@ -67,22 +68,22 @@ node, but can only be asynchronous.
 
 ## Set up replication using Archive
 
-1. WAL archive must be configured on primary server.
-2. Archive location must be accessible to standby server.
-3. Take a full base backup of primary db cluster.
-4. Copy the backup to the standby server.
+1. WAL archive must be configured on primary server
+2. Archive location must be accessible to standby server
+3. Take a full base backup of primary db cluster
+4. Copy the backup to the standby server
 5. If using db tablespaces, directory structure must be the same on
-   master and standby.
+   master and standby
 6. Create a ``recovery.conf`` file inside data dir of standby db
-   cluster.
+   cluster
 7. Turn on ``standby_mode`` and set ``restore_command`` to copy file
-   from the WAL archive location.
+   from the WAL archive location
 
 Configure WAL archiving (Debian/Ubuntu):
 
     $ sudo mkdir /mnt/archive_dest
     $ sudo chown postgres:postgres /mnt/archive_dest
-    $ vi /etc/postgresql/9.5/<CLUSTER_NAME>/postgresq1.conf
+    $ nano /etc/postgresql/9.5/<CLUSTER_NAME>/postgresq1.conf
         wal level = hot standby
         archive mode = on
         archive command = 'cp %p /mnt/archive_dest/%f'
@@ -100,7 +101,7 @@ from the master server data directory.
 
 On the standby, create ``recovery.conf``:
 
-    $ vi /var/lib/postgresql/9.5/<CLUSTER_STANDBY>/recovery.conf
+    $ nano /var/lib/postgresql/9.5/<CLUSTER_STANDBY>/recovery.conf
         standby_mode = on
         restore command = 'cp -rp /mnt/archive_dest %p'
         archive_cleanup_command = 'pg_archivecleanup /mnt/archive_dest %r'
@@ -108,11 +109,12 @@ On the standby, create ``recovery.conf``:
 
 Open postgresql.conf and turn on hot standby mode:
 
-    $ vi /var/lib/postgresql/9.5/<CLUSTER_STANDBY>/postgresgl.conf
+    $ nano /var/lib/postgresql/9.5/<CLUSTER_STANDBY>/postgresgl.conf
         hot standby = on
 
-If testing on single machine, comment archive parameters and change
-port. Save and start the standby:
+If testing on single machine, comment archive parameters and change port.
+
+Save and start the standby:
 
     $ pq_ctl —D standby1/ -l standby1/startlog start
 
@@ -122,7 +124,7 @@ Prepare the Primary Server:
 
 * Change WAL level parameter (``wal_level = hot_standby``)
 * Set only the minimum no. of segments retained in pg_xlog
-  (``wall_keep_segments = 50``)
+  (``wal_keep_segments = 50``)
 * Two options to allow streaming connection:
   * ``max_wal_senders`` - set max no of concurrent connections from
     standby server or stream clients. This enables the ability to stream
@@ -134,23 +136,23 @@ Prepare the Primary Server:
 
 Synchronous Streaming Replication set up:
 
-* Default level of Streaming Replication is Asynchronous
+* Default level of Streaming Replication is asynchronous
 * Synchronous level can also be configured to provide 2-safe replication
-* Addition parameters need to be configured:
+* Additional parameters need to be configured:
   * ``synchronous_commit = on``
   * ``synchronous_standby_names`` (specifies a comma-separated list of
   standby names that can support synchronous replication)
 * Transactions can be configured not to wait for replication by setting
   the synchronous commit parameter to local or off.
-* During syncronous setup ``pg_start_backup()`` and pg_stop_backup()``
-  are run in a session With synchronous commit off.
+* During syncronous setup ``pg_start_backup()`` and ``pg_stop_backup()``
+  are run in a session with ``synchronous_commit = off``.
 
 Configure authentication: authentication setting on the primary server
 must allow replication connections from the standby server(s). Provide a
 suitable entry or entries in **pg_hba.conf** with the database field set
 to ``replication``. Need to reload the primary.
 
-Take a full backup of primary server:
+Take a full backup of primary server. Can use ``pg_basebackup`` or method below:
 
 * Connect to the db as a superuser and issue the command: ``SELECT
   pg_start_backup('label');``
@@ -163,25 +165,25 @@ Take a full backup of primary server:
 
 Setting up the standby server:
 
-* Remove **postmaster.pid** file.
+* Remove **postmaster.pid** file from standby data directory
 * Configure standby server parameters (note that ``hot_standby`` must be
-  on for readonly transaction support on standby).
+  on for readonly transaction support on standby)
 * Create **recovery.conf** file inside the data dir of the standby
-  server.
+  server
 * Set up recovery.conf params (standby_mode, primary_conninfo,
-  primary_slot_name, recovery_min_apply_delay, trigger_file).
-* Start the standby server.
+  primary_slot_name, recovery_min_apply_delay, trigger_file)
+* Start the standby server
 
 Adding cascading Replicated Standby server:
 
 * Backup the primary server using **pg_basebackup**: ``pg_basebackup -h
   localhost -U replication_user -p 5432 -D /backup/data2``
-* A new cluster will be created with data dir "data2".
-* Change the port if on the same machine.
+* A new cluster will be created with data dir "data2"
+* Change the port if on the same machine
 * Create **recovery.conf** file in new standby (``standby_mode = on,
   primary_conninfo='details'``)
-* Change ``pg_hba.conf`` of standby to allow conenction from data2 cluster.
-* Start the cluster.
+* Change ``pg_hba.conf`` of standby to allow conenction from data2 cluster
+* Start the cluster
 
 ## Monitoring Hot Standby
 

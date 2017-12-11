@@ -28,10 +28,10 @@ detects SELECT and can load balance reads among multiple servers,
 improving overall performance. This works best in a situation where
 there are a lot of users executing many queries at the same time.
 
-There is a limit on the max number of concurrent connections with PG and
-connections are rejected after this limit is reached. **pgpool-II** also
-has a limit on the max number of connections, but extra connections will
-be queued instead of returning an error immediately.
+There is a limit on the max number of concurrent connections with PG
+(``max_connections``) and connections are rejected after this limit is reached.
+**pgpool-II** also has a limit on the max number of connections, but extra
+connections will be queued instead of returning an error immediately.
 
 **pgpool-II** automatically detects a failed master and can take action
 to promote a slave to be the new master. After failover it automaticaly

@@ -22,13 +22,16 @@ correctly.
 ``pg_upgrade`` can be used for 8.4 or later to upgrade a database to the
 latest version. Upgrade steps:
 
-1. Verify the source version and data directory.
-2. Install newer version (same server or new server).
-3. Initialise a new data cluster (not started).
-4. Stop the source database cluster.
-5. Run ``pg_upgrade``.
-6. Start the new data cluster.
-7. Connect and verify the new data cluster.
+1. Verify the source version and data directory (``show data_directory``)
+2. Install newer version (same server or new server)
+3. Initialise a new data cluster, not started (``initdb -D <new_data_dir>``) 
+4. Stop the source database cluster (``pg_ctl -D <old_data_dir> stop``)
+5. Run ``pg_upgrade -d <old_data_dir> -D <new_data_dir> -b <old_bin_dir> -B 
+   <new_bin_dir>`` (the ``--check`` and ``-V`` options are also very useful)
+6. Start the new data cluster  (``pg_ctl -D <new_data_dir> start``)
+7. Connect and verify the new data cluster
 
 For streaming replication environments, the standby server also needs to
 be upgraded to the same new version.
+
+

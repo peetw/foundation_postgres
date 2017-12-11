@@ -1,6 +1,6 @@
 # Performance tuning
 
-These are activities used to optimise a database, to correct
+These are activities used to optimize a database, to correct
 poorly-written SQL, poor session management, misconfigured db
 parameters, I/O issues, etc. Starts with information collection, then
 analysis, followed by implementation of solution(s).
@@ -8,13 +8,7 @@ analysis, followed by implementation of solution(s).
 Identify the info relevant to diagnosing problems, collect that info on
 a regular basis, conduct analysis to understand and correlate all
 relevant stats together. There may be multiple solutions. Judgement is
-req'd to prioritise and quantify the solutions by impact.
-
-PEM simplifies collection of performance data, with automatic analysis
-of performance and diagnostics data. Provides a performance dashboard to
-view I/O, memory usage, session activity and wait stats. Includes SQL
-Profiler to optimise slow SQL, Index Advisor and setup alerts and
-thresholds.
+req'd to prioritize and quantify the solutions by impact.
 
 # Operating System considerations
 
@@ -48,10 +42,15 @@ for write-back.
 
 Default *postgresql.conf* server parameters are configured for wide
 compatibility and must be tuned to optimal values for best performance.
-Parameters can be evaluated using difference methods. Basic info needed
-for tuning: database size, largest table size, type and frequency of
-queries, available RAM, no. of concurrent connections. PEM has Postgres
-Expert which can perform and analysis for your server and database.
+Parameters can be evaluated using difference methods.
+
+Basic info needed for tuning:
+
+* Database size
+* Largest table size
+* Type and frequency of queries
+* Available RAM
+* No. of concurrent connections
 
 ``max_connections`` - sets the max no of concurrent connections. Each
 user connection has a backend process on the server. Terminated when a
@@ -77,7 +76,7 @@ restoring db dumps can be improved by increasing this value.
 autovacuum worker process. Default value is -1, which indicates that
 ``maintenance_work_mem`` is to be used instead.
 
-``huge_pages`` - enables.disables the use of huge memory pages. Valid
+``huge_pages`` - enables/disables the use of huge memory pages. Valid
 values are try, on and off. Param is only supported on Linux. May help
 in increasing performance by using smaller page tables and less CPU time
 on memory management.
@@ -122,7 +121,7 @@ that ``synchronous_commit=off`` can provide similar benefits for
 noncritical transactions without risk of data corruption.
 
 *pg_test_fsync* can determine the fastest ``wal_sync_method`` on your
-specific system (method is used for forcing WAL updates out to disk.
+specific system (method is used for forcing WAL updates out to disk).
 It reports average sync operation time for different methods. Compare
 the methods and choose the one with the fastest performance for your
 hardware (check ``postgres.conf`` for options).
